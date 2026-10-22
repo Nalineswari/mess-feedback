@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BITS Dubai Mess - Admin Analytics Dashboard</title>
+  
+  <!-- Tailwind CSS & Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+  <!-- Admin Header -->
+  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-lg">
+    <div class="flex items-center space-x-3">
+      <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-sm tracking-wider">ADMIN</span>
+      <div>
+        <h1 class="font-bold text-lg text-white leading-tight">BITS Pilani, Dubai Campus</h1>
+        <p class="text-xs text-slate-400">Mess Feedback Analytics & Quantification System</p>
+      </div>
+    </div>
+    <button onclick="fetchAnalyticsData()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow transition flex items-center">
+      <i class="fa-solid fa-rotate-right mr-1.5"></i> Refresh Data
+    </button>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- KPI Scorecards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Submissions</p>
+        <p id="kpiTotal" class="text-3xl font-black text-white mt-1">0</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall CSAT Rating</p>
+        <p id="kpiCsat" class="text-3xl font-black text-amber-400 mt-1">0.0 / 5.0</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Highest Rated Meal</p>
+        <p id="kpiHighest" class="text-xl font-bold text-emerald-400 mt-2">-</p>
+      </div>
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Lowest Rated Meal</p>
+        <p id="kpiLowest" class="text-xl font-bold text-red-400 mt-2">-</p>
+      </div>
+    </div>
+
+    <!-- Analytics Charts Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Chart 1: Meal Averages -->
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center">
+          <i class="fa-solid fa-chart-column text-amber-400 mr-2"></i> Meal Satisfaction Comparison (1-5 Star Averages)
+        </h3>
+        <div class="relative h-64">
+          <canvas id="mealChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Chart 2: Category Breakdown -->
+      <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+        <h3 class="text-sm font-bold text-white mb-4 flex items-center">
+          <i class="fa-solid fa-chart-pie text-amber-400 mr-2"></i> Feedback Breakdown by Academic Batch
+        </h3>
+        <div class="relative h-64 flex justify-center">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Recent Comments Summary Table -->
+    <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow overflow-hidden">
+      <div class="p-5 border-b border-slate-700 flex justify-between items-center">
+        <h3 class="text-sm font-bold text-white flex items-center">
+          <i class="fa-solid fa-comments text-amber-400 mr-2"></i> Recent Student Comments & Specific Feedback
+        </h3>
+        <span id="commentCount" class="text-xs text-slate-400 font-medium">0 Comments</span>
+      </div>
+      
+      <div class="overflow-x-auto max-h-80 overflow-y-auto">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase font-bold sticky top-0">
+            <tr>
+              <th class="p-3">Timestamp</th>
+              <th class="p-3">Name</th>
+              <th class="p-3">Category</th>
+              <th class="p-3">Meal</th>
+              <th class="p-3">Rating</th>
+              <th class="p-3">Comment</th>
+            </tr>
+          </thead>
+          <tbody id="commentsTableBody" class="divide-y divide-slate-700/50">
+            <tr>
+              <td colspan="6" class="p-4 text-center text-slate-500">Loading feedback comments...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+    const API_URL = "https://script.google.com/macros/s/AKfycbxd0YJNZwt6hFplbt7p3eVUrLYLzvg12QU-nF3eY8iA4yCtA-CtMq7qDd45paRZUVntkg/exec";
+
+    let mealChartInstance = null;
+    let categoryChartInstance = null;
+
+    function fetchAnalyticsData() {
+      fetch(API_URL)
+        .then(res => res.json())
+        .then(res => {
+          if (res.success && res.data) {
+            renderDashboard(res.data);
+          } else {
+            alert("No data found or error fetching data.");
+          }
+        })
+        .catch(err => {
+          console.error("Error loading analytics:", err);
+          alert("Failed to connect to Google Sheet data source.");
+        });
+    }
+
+    function renderDashboard(data) {
+      document.getElementById('kpiTotal').textContent = data.length;
+      if (data.length === 0) return;
+
+      let bSum=0, lSum=0, sSum=0, dSum=0, gSum=0;
+      let categories = {};
+      let commentsList = [];
+
+      data.forEach(item => {
+        bSum += item.breakfastRating;
+        lSum += item.lunchRating;
+        sSum += item.snacksRating;
+        dSum += item.dinnerRating;
+        gSum += item.generalRating;
+
+        // Categories
+        categories[item.category] = (categories[item.category] || 0) + 1;
+
+        // Collect comments if present
+        if (item.breakfastComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Breakfast', rating: item.breakfastRating, comment: item.breakfastComment });
+        if (item.lunchComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Lunch', rating: item.lunchRating, comment: item.lunchComment });
+        if (item.snacksComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Snacks', rating: item.snacksRating, comment: item.snacksComment });
+        if (item.dinnerComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Dinner', rating: item.dinnerRating, comment: item.dinnerComment });
+        if (item.generalComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'General', rating: item.generalRating, comment: item.generalComment });
+      });
+
+      const count = data.length;
+      const bAvg = (bSum / count).toFixed(2);
+      const lAvg = (lSum / count).toFixed(2);
+      const sAvg = (sSum / count).toFixed(2);
+      const dAvg = (dSum / count).toFixed(2);
+      const gAvg = (gSum / count).toFixed(2);
+
+      const overallAvg = ((parseFloat(bAvg) + parseFloat(lAvg) + parseFloat(sAvg) + parseFloat(dAvg) + parseFloat(gAvg)) / 5).toFixed(2);
+      document.getElementById('kpiCsat').textContent = `${overallAvg} / 5.0`;
+
+      // Find highest & lowest
+      const mealMap = { Breakfast: bAvg, Lunch: lAvg, Snacks: sAvg, Dinner: dAvg, General: gAvg };
+      const sortedMeals = Object.keys(mealMap).sort((a,b) => mealMap[b] - mealMap[a]);
+      
+      document.getElementById('kpiHighest').textContent = `${sortedMeals[0]} (${mealMap[sortedMeals[0]]} ★)`;
+      document.getElementById('kpiLowest').textContent = `${sortedMeals[sortedMeals.length-1]} (${mealMap[sortedMeals[sortedMeals.length-1]]} ★)`;
+
+      // Render Chart 1: Bar Chart for Meals
+      const ctx1 = document.getElementById('mealChart').getContext('2d');
+      if (mealChartInstance) mealChartInstance.destroy();
+      mealChartInstance = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: ['Breakfast', 'Lunch', 'Evening Snacks', 'Dinner', 'General Cleanliness'],
+          datasets: [{
+            label: 'Average Rating (Out of 5)',
+            data: [bAvg, lAvg, sAvg, dAvg, gAvg],
+            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#8b5cf6'],
+            borderRadius: 8
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 1, max: 5, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Render Chart 2: Doughnut Chart for Categories
+      const ctx2 = document.getElementById('categoryChart').getContext('2d');
+      if (categoryChartInstance) categoryChartInstance.destroy();
+      categoryChartInstance = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(categories),
+          datasets: [{
+            data: Object.values(categories),
+            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#ec4899', '#14b8a6']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } }
+        }
+      });
+
+      // Populate Comments Table
+      document.getElementById('commentCount').textContent = `${commentsList.length} Total Comments`;
+      const tbody = document.getElementById('commentsTableBody');
+      tbody.innerHTML = '';
+
+      if (commentsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No text comments recorded yet.</td></tr>`;
+      } else {
+        commentsList.reverse().slice(0, 30).forEach(c => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-slate-700/30 transition';
+          row.innerHTML = `
+            <td class="p-3 text-slate-400 whitespace-nowrap">${new Date(c.time).toLocaleDateString()}</td>
+            <td class="p-3 font-semibold text-white">${c.name}</td>
+            <td class="p-3 text-slate-400">${c.cat}</td>
+            <td class="p-3 font-bold text-amber-400">${c.meal}</td>
+            <td class="p-3"><span class="bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded">${c.rating} ★</span></td>
+            <td class="p-3 text-slate-200">${c.comment}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+    }
+
+    // Load data on start
+    window.onload = fetchAnalyticsData;
+  </script>
+</body>
+</html>
