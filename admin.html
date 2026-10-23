@@ -24,7 +24,7 @@
       <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-sm tracking-wider">ADMIN</span>
       <div>
         <h1 class="font-bold text-lg text-white leading-tight">BITS Pilani, Dubai Campus</h1>
-        <p class="text-xs text-slate-400">Mess Analytics & Response Dashboard</p>
+        <p class="text-xs text-slate-400">Mess Response Dashboard</p>
       </div>
     </div>
 
@@ -140,13 +140,21 @@
       </div>
     </div>
 
-    <!-- Dish Comments Table -->
+    <!-- Dish Comments Table with Live Search Filter -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow overflow-hidden">
-      <div class="p-5 border-b border-slate-700 flex justify-between items-center">
+      <div class="p-5 border-b border-slate-700 flex flex-wrap gap-4 justify-between items-center">
         <h3 class="text-sm font-bold text-white flex items-center">
           <i class="fa-solid fa-comments text-amber-400 mr-2"></i> Written Dish Feedback & Specific Comments
         </h3>
-        <span id="commentCount" class="text-xs text-slate-400 font-medium">0 Written Feedback Entries</span>
+        
+        <!-- Search Input Bar -->
+        <div class="flex items-center space-x-3">
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3 top-2.5 text-xs"></i>
+            <input type="text" id="commentSearch" onkeyup="applyFilters()" placeholder="Search dish, comment, name, ID..." class="bg-slate-900 border border-slate-700 text-white pl-8 pr-3 py-1.5 rounded-lg text-xs outline-none focus:border-amber-500 transition w-64">
+          </div>
+          <span id="commentCount" class="text-xs text-slate-400 font-medium whitespace-nowrap">0 Written Feedback Entries</span>
+        </div>
       </div>
       
       <div class="overflow-x-auto max-h-80 overflow-y-auto">
@@ -446,19 +454,32 @@
         }
       });
 
-      // Render Table
+      // Render Table with Keyword Search
+      const searchQuery = (document.getElementById('commentSearch')?.value || '').toLowerCase().trim();
       const tbody = document.getElementById('commentsTableBody');
       tbody.innerHTML = '';
 
       let filteredComments = writtenCommentsList;
+      
+      // Filter by Meal Slot
       if (selectedMeal !== 'ALL') {
-        filteredComments = writtenCommentsList.filter(c => c.meal.toLowerCase().includes(selectedMeal.toLowerCase()));
+        filteredComments = filteredComments.filter(c => c.meal.toLowerCase().includes(selectedMeal.toLowerCase()));
+      }
+
+      // Filter by Search Query (Dish, Comment, Name, ID)
+      if (searchQuery !== '') {
+        filteredComments = filteredComments.filter(c => 
+          c.comment.toLowerCase().includes(searchQuery) ||
+          c.name.toLowerCase().includes(searchQuery) ||
+          c.meta.toLowerCase().includes(searchQuery) ||
+          c.meal.toLowerCase().includes(searchQuery)
+        );
       }
 
       document.getElementById('commentCount').textContent = `${filteredComments.length} Written Feedback Entries`;
 
       if (filteredComments.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No written text feedback submitted for this selection yet.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No written feedback matches the current search or filters.</td></tr>`;
       } else {
         filteredComments.reverse().forEach(c => {
           const row = document.createElement('tr');
@@ -483,6 +504,9 @@
       document.getElementById('endDate').value = '';
       document.getElementById('mealFilter').value = 'ALL';
       document.getElementById('blockFilter').value = 'ALL';
+      if (document.getElementById('commentSearch')) {
+        document.getElementById('commentSearch').value = '';
+      }
       applyFilters();
     }
 
