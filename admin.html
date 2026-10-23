@@ -28,7 +28,7 @@
       </div>
     </div>
 
-    <!-- Calendar Controls with Pure White Icons -->
+    <!-- Calendar Controls -->
     <div class="flex flex-wrap items-center gap-3">
       <div class="flex items-center space-x-3 bg-slate-900 px-3.5 py-2 rounded-lg border border-slate-700 text-xs">
         <div class="flex items-center space-x-1.5">
@@ -105,29 +105,39 @@
       </div>
     </div>
 
-    <!-- Charts -->
+    <!-- 2 Meal Charts Side-by-Side -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
-      <!-- Student Vote Counts per Score (Grouped Bar Chart) -->
+      <!-- Chart 1: Average Meal Scores -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <h3 class="text-sm font-bold text-white mb-4 flex items-center">
-          <i class="fa-solid fa-chart-column text-amber-400 mr-2"></i> Student Ratings Count (Score 1, 2, and 3)
+          <i class="fa-solid fa-chart-column text-amber-400 mr-2"></i> Meal Score Averages (1=Below Sat, 2=Sat, 3=Good)
         </h3>
         <div class="relative h-64">
-          <canvas id="mealChart"></canvas>
+          <canvas id="avgChart"></canvas>
         </div>
       </div>
 
-      <!-- Responses by Block Chart -->
+      <!-- Chart 2: Student Vote Breakdown Counts -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <h3 class="text-sm font-bold text-white mb-4 flex items-center">
-          <i class="fa-solid fa-chart-pie text-amber-400 mr-2"></i> Responses by Hostel Block
+          <i class="fa-solid fa-chart-bar text-amber-400 mr-2"></i> Student Ratings Count (Score 1, 2, and 3)
         </h3>
-        <div class="relative h-64 flex justify-center">
-          <canvas id="blockChart"></canvas>
+        <div class="relative h-64">
+          <canvas id="countChart"></canvas>
         </div>
       </div>
 
+    </div>
+
+    <!-- Chart 3: Hostel Block Participation -->
+    <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
+      <h3 class="text-sm font-bold text-white mb-4 flex items-center">
+        <i class="fa-solid fa-chart-pie text-amber-400 mr-2"></i> Responses by Hostel Block
+      </h3>
+      <div class="relative h-64 flex justify-center">
+        <canvas id="blockChart"></canvas>
+      </div>
     </div>
 
     <!-- Dish Comments Table -->
@@ -163,7 +173,6 @@
   </main>
 
   <script>
-    // Register ChartDataLabels plugin globally
     Chart.register(ChartDataLabels);
 
     // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
@@ -171,7 +180,8 @@
 
     let rawData = [];
     let filteredData = [];
-    let mealChartInstance = null;
+    let avgChartInstance = null;
+    let countChartInstance = null;
     let blockChartInstance = null;
 
     function parseRating(val) {
@@ -253,12 +263,12 @@
         document.getElementById('commentsTableBody').innerHTML = 
           `<tr><td colspan="6" class="p-4 text-center text-slate-500">No responses match the selected block and date filters.</td></tr>`;
 
-        if (mealChartInstance) mealChartInstance.destroy();
+        if (avgChartInstance) avgChartInstance.destroy();
+        if (countChartInstance) countChartInstance.destroy();
         if (blockChartInstance) blockChartInstance.destroy();
         return;
       }
 
-      // Structure to hold counts for score 1, 2, and 3
       let counts = {
         Breakfast: { 1: 0, 2: 0, 3: 0 },
         Lunch:     { 1: 0, 2: 0, 3: 0 },
@@ -297,7 +307,6 @@
         if (item.generalComment && item.generalComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'General', score: g, comment: item.generalComment });
       });
 
-      // Compute averages for KPIs
       let calcAvg = (c) => {
         let total = c[1] + c[2] + c[3];
         return total ? ((c[1]*1 + c[2]*2 + c[3]*3) / total).toFixed(2) : 0;
@@ -327,82 +336,98 @@
         document.getElementById('kpiLowest').textContent = `${mealAverages[mealAverages.length - 1].name} (${mealAverages[mealAverages.length - 1].score.toFixed(2)})`;
       }
 
-      // Prepare Grouped Bar Data
       let labels = ['Breakfast', 'Lunch', 'Snacks', 'Dinner', 'General'];
-      let data1 = labels.map(m => counts[m][1]); // Below Sat
-      let data2 = labels.map(m => counts[m][2]); // Sat
-      let data3 = labels.map(m => counts[m][3]); // Good
+      let avgDataset = [bAvg, lAvg, sAvg, dAvg, gAvg];
+      let bgColors = ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#8b5cf6'];
+
+      let data1 = labels.map(m => counts[m][1]);
+      let data2 = labels.map(m => counts[m][2]);
+      let data3 = labels.map(m => counts[m][3]);
 
       if (selectedMeal !== 'ALL') {
         labels = labels.filter(m => m.toLowerCase().includes(selectedMeal.toLowerCase()));
         data1 = labels.map(m => counts[m][1]);
         data2 = labels.map(m => counts[m][2]);
         data3 = labels.map(m => counts[m][3]);
+
+        if (selectedMeal === 'Breakfast') avgDataset = [bAvg];
+        else if (selectedMeal === 'Lunch') avgDataset = [lAvg];
+        else if (selectedMeal === 'Snacks') avgDataset = [sAvg];
+        else if (selectedMeal === 'Dinner') avgDataset = [dAvg];
+        else if (selectedMeal === 'General') avgDataset = [gAvg];
       }
 
-      let maxCount = Math.max(...data1, ...data2, ...data3, 1);
+      // Render Chart 1: Meal Score Averages
+      const ctxAvg = document.getElementById('avgChart').getContext('2d');
+      if (avgChartInstance) avgChartInstance.destroy();
+      avgChartInstance = new Chart(ctxAvg, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: avgDataset,
+            backgroundColor: bgColors,
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: 3.5, ticks: { color: '#94a3b8', stepSize: 1 } },
+            x: { ticks: { color: '#94a3b8' } }
+          },
+          plugins: { 
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#ffffff',
+              font: { weight: 'bold', size: 11 },
+              formatter: function(val) { return val > 0 ? parseFloat(val).toFixed(2) : ''; }
+            }
+          }
+        }
+      });
 
-      // Render Grouped Bar Chart
-      const ctx1 = document.getElementById('mealChart').getContext('2d');
-      if (mealChartInstance) mealChartInstance.destroy();
-      mealChartInstance = new Chart(ctx1, {
+      // Render Chart 2: Student Vote Count Breakdown
+      let maxCount = Math.max(...data1, ...data2, ...data3, 1);
+      const ctxCount = document.getElementById('countChart').getContext('2d');
+      if (countChartInstance) countChartInstance.destroy();
+      countChartInstance = new Chart(ctxCount, {
         type: 'bar',
         data: {
           labels: labels,
           datasets: [
-            {
-              label: 'Below Sat (1)',
-              data: data1,
-              backgroundColor: '#ef4444',
-              borderRadius: 4
-            },
-            {
-              label: 'Satisfactory (2)',
-              data: data2,
-              backgroundColor: '#f59e0b',
-              borderRadius: 4
-            },
-            {
-              label: 'Good (3)',
-              data: data3,
-              backgroundColor: '#10b981',
-              borderRadius: 4
-            }
+            { label: 'Below Sat (1)', data: data1, backgroundColor: '#ef4444', borderRadius: 4 },
+            { label: 'Satisfactory (2)', data: data2, backgroundColor: '#f59e0b', borderRadius: 4 },
+            { label: 'Good (3)', data: data3, backgroundColor: '#10b981', borderRadius: 4 }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            y: { 
-              beginAtZero: true, 
-              suggestedMax: maxCount + 1,
-              ticks: { color: '#94a3b8', stepSize: 1 } 
-            },
+            y: { beginAtZero: true, suggestedMax: maxCount + 1, ticks: { color: '#94a3b8', stepSize: 1 } },
             x: { ticks: { color: '#94a3b8' } }
           },
           plugins: { 
-            legend: { 
-              display: true, 
-              labels: { color: '#94a3b8', font: { size: 11 } } 
-            },
+            legend: { display: true, labels: { color: '#94a3b8', font: { size: 10 } } },
             datalabels: {
               anchor: 'end',
               align: 'end',
               color: '#ffffff',
-              font: { weight: 'bold', size: 11 },
-              formatter: function(value) {
-                return value > 0 ? value : '';
-              }
+              font: { weight: 'bold', size: 10 },
+              formatter: function(val) { return val > 0 ? val : ''; }
             }
           }
         }
       });
 
-      // Render Block Chart
-      const ctx2 = document.getElementById('blockChart').getContext('2d');
+      // Render Chart 3: Hostel Block Doughnut
+      const ctxBlock = document.getElementById('blockChart').getContext('2d');
       if (blockChartInstance) blockChartInstance.destroy();
-      blockChartInstance = new Chart(ctx2, {
+      blockChartInstance = new Chart(ctxBlock, {
         type: 'doughnut',
         data: {
           labels: Object.keys(blocks),
@@ -421,7 +446,7 @@
         }
       });
 
-      // Render Comments Table
+      // Render Table
       const tbody = document.getElementById('commentsTableBody');
       tbody.innerHTML = '';
 
