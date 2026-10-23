@@ -3,40 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BITS Dubai Mess - Admin Analytics Dashboard</title>
-  
-  <!-- Tailwind CSS & Chart.js -->
+  <title>BITS Dubai Mess Analytics - Live Executive Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+      opacity: 1;
+    }
+  </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
-  <!-- Admin Header -->
-  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-lg">
+  <!-- Header Banner -->
+  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-10 shadow-lg gap-4">
     <div class="flex items-center space-x-3">
       <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-sm tracking-wider">ADMIN</span>
       <div>
         <h1 class="font-bold text-lg text-white leading-tight">BITS Pilani, Dubai Campus</h1>
-        <p class="text-xs text-slate-400">Mess Feedback Analytics & Quantification System</p>
+        <p class="text-xs text-slate-400">Mess Analytics & Response Dashboard</p>
       </div>
     </div>
-    <button onclick="fetchAnalyticsData()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow transition flex items-center">
-      <i class="fa-solid fa-rotate-right mr-1.5"></i> Refresh Data
-    </button>
+
+    <!-- Calendar Controls with Pure White Icons -->
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center space-x-3 bg-slate-900 px-3.5 py-2 rounded-lg border border-slate-700 text-xs">
+        <div class="flex items-center space-x-1.5">
+          <i class="fa-solid fa-calendar-days text-white text-sm"></i>
+          <span class="text-slate-300 font-semibold">From:</span>
+          <input type="date" id="startDate" onchange="applyFilters()" class="bg-transparent text-white font-medium outline-none cursor-pointer">
+        </div>
+        <span class="text-slate-600">|</span>
+        <div class="flex items-center space-x-1.5">
+          <i class="fa-solid fa-calendar-days text-white text-sm"></i>
+          <span class="text-slate-300 font-semibold">To:</span>
+          <input type="date" id="endDate" onchange="applyFilters()" class="bg-transparent text-white font-medium outline-none cursor-pointer">
+        </div>
+      </div>
+
+      <button onclick="fetchSheetData()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow transition flex items-center">
+        <i class="fa-solid fa-rotate-right mr-1.5"></i> Refresh
+      </button>
+    </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
-    <!-- KPI Scorecards -->
+    <!-- Filters Bar -->
+    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-wrap gap-4 items-center justify-between text-xs">
+      <div class="flex flex-wrap gap-4 items-center">
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">Filter by Meal Slot:</label>
+          <select id="mealFilter" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white outline-none">
+            <option value="ALL">All Meal Slots</option>
+            <option value="Breakfast">Breakfast</option>
+            <option value="Lunch">Lunch</option>
+            <option value="Snacks">Evening Snacks</option>
+            <option value="Dinner">Dinner</option>
+            <option value="General">General Cleanliness</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">Filter by Block / Hostel:</label>
+          <select id="blockFilter" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white outline-none">
+            <option value="ALL">All Hostel Blocks</option>
+            <option value="A Block">A Block</option>
+            <option value="B Block">B Block</option>
+            <option value="C Block">C Block</option>
+            <option value="G Block">G Block</option>
+            <option value="H Block">H Block</option>
+            <option value="IMT Campus">IMT Campus</option>
+            <option value="Myriad Campus">Myriad Campus</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="resetFilters()" class="text-amber-400 hover:underline">Reset Filters</button>
+    </div>
+
+    <!-- 4 KPI Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Submissions</p>
         <p id="kpiTotal" class="text-3xl font-black text-white mt-1">0</p>
       </div>
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
-        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Overall CSAT Rating</p>
-        <p id="kpiCsat" class="text-3xl font-black text-amber-400 mt-1">0.0 / 5.0</p>
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Average (Scale 1-3)</p>
+        <p id="kpiCsat" class="text-3xl font-black text-amber-400 mt-1">0.00 / 3.00</p>
       </div>
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Highest Rated Meal</p>
@@ -48,38 +105,38 @@
       </div>
     </div>
 
-    <!-- Analytics Charts Grid -->
+    <!-- Charts -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       
-      <!-- Chart 1: Meal Averages -->
+      <!-- Meal Score Averages Bar Chart (with Data Labels) -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <h3 class="text-sm font-bold text-white mb-4 flex items-center">
-          <i class="fa-solid fa-chart-column text-amber-400 mr-2"></i> Meal Satisfaction Comparison (1-5 Star Averages)
+          <i class="fa-solid fa-chart-column text-amber-400 mr-2"></i> Meal Score Averages (1=Below Sat, 2=Sat, 3=Good)
         </h3>
         <div class="relative h-64">
           <canvas id="mealChart"></canvas>
         </div>
       </div>
 
-      <!-- Chart 2: Category Breakdown -->
+      <!-- Responses by Block Chart -->
       <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow">
         <h3 class="text-sm font-bold text-white mb-4 flex items-center">
-          <i class="fa-solid fa-chart-pie text-amber-400 mr-2"></i> Feedback Breakdown by Academic Batch
+          <i class="fa-solid fa-chart-pie text-amber-400 mr-2"></i> Responses by Hostel Block
         </h3>
         <div class="relative h-64 flex justify-center">
-          <canvas id="categoryChart"></canvas>
+          <canvas id="blockChart"></canvas>
         </div>
       </div>
 
     </div>
 
-    <!-- Recent Comments Summary Table -->
+    <!-- Dish Comments Table -->
     <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow overflow-hidden">
       <div class="p-5 border-b border-slate-700 flex justify-between items-center">
         <h3 class="text-sm font-bold text-white flex items-center">
-          <i class="fa-solid fa-comments text-amber-400 mr-2"></i> Recent Student Comments & Specific Feedback
+          <i class="fa-solid fa-comments text-amber-400 mr-2"></i> Written Dish Feedback & Specific Comments
         </h3>
-        <span id="commentCount" class="text-xs text-slate-400 font-medium">0 Comments</span>
+        <span id="commentCount" class="text-xs text-slate-400 font-medium">0 Written Feedback Entries</span>
       </div>
       
       <div class="overflow-x-auto max-h-80 overflow-y-auto">
@@ -88,15 +145,15 @@
             <tr>
               <th class="p-3">Timestamp</th>
               <th class="p-3">Name</th>
-              <th class="p-3">Category</th>
-              <th class="p-3">Meal</th>
-              <th class="p-3">Rating</th>
-              <th class="p-3">Comment</th>
+              <th class="p-3">Campus ID / Block</th>
+              <th class="p-3">Meal Slot</th>
+              <th class="p-3">Score (1-3)</th>
+              <th class="p-3">Dish / Comment</th>
             </tr>
           </thead>
           <tbody id="commentsTableBody" class="divide-y divide-slate-700/50">
             <tr>
-              <td colspan="6" class="p-4 text-center text-slate-500">Loading feedback comments...</td>
+              <td colspan="6" class="p-4 text-center text-slate-500">Loading form responses...</td>
             </tr>
           </tbody>
         </table>
@@ -106,132 +163,252 @@
   </main>
 
   <script>
+    // Register ChartDataLabels plugin globally
+    Chart.register(ChartDataLabels);
+
     // PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-    const API_URL = "https://script.google.com/macros/s/AKfycbxd0YJNZwt6hFplbt7p3eVUrLYLzvg12QU-nF3eY8iA4yCtA-CtMq7qDd45paRZUVntkg/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbxmIENw6vWS5ZdD9ilODtjtUsJVaDAhHoWNXYFGAvrxqYniHHaNGhT0N2uA6vuRSssKlA/exec";
 
+    let rawData = [];
+    let filteredData = [];
     let mealChartInstance = null;
-    let categoryChartInstance = null;
+    let blockChartInstance = null;
 
-    function fetchAnalyticsData() {
+    function parseRating(val) {
+      if (!val) return 0;
+      let s = String(val).toLowerCase().trim();
+      if (s.includes("below") || s.startsWith("1")) return 1;
+      if (s.includes("satisfactory") && !s.includes("below")) return 2;
+      if (s.includes("good") || s.startsWith("3")) return 3;
+      return Number(val) || 0;
+    }
+
+    function cleanDateDisplay(ts) {
+      if (!ts) return "N/A";
+      let d = new Date(ts);
+      if (isNaN(d.getTime())) {
+        let cleanTs = String(ts).replace(/\(.*?\)/g, '').trim();
+        d = new Date(cleanTs);
+      }
+      if (isNaN(d.getTime())) return String(ts).split(' GMT')[0];
+
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+             d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    }
+
+    function parseDateForFilter(ts) {
+      if (!ts) return null;
+      let d = new Date(ts);
+      if (!isNaN(d.getTime())) return d;
+      let cleanTs = String(ts).replace(/\(.*?\)/g, '').trim();
+      d = new Date(cleanTs);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function fetchSheetData() {
       fetch(API_URL)
         .then(res => res.json())
         .then(res => {
-          if (res.success && res.data) {
-            renderDashboard(res.data);
-          } else {
-            alert("No data found or error fetching data.");
+          if (res.data) {
+            rawData = res.data;
+            applyFilters();
           }
         })
-        .catch(err => {
-          console.error("Error loading analytics:", err);
-          alert("Failed to connect to Google Sheet data source.");
-        });
+        .catch(err => console.error("Error fetching sheet data:", err));
     }
 
-    function renderDashboard(data) {
-      document.getElementById('kpiTotal').textContent = data.length;
-      if (data.length === 0) return;
+    function applyFilters() {
+      const startVal = document.getElementById('startDate').value;
+      const endVal = document.getElementById('endDate').value;
+      const selectedMeal = document.getElementById('mealFilter').value;
+      const selectedBlock = document.getElementById('blockFilter').value;
 
-      let bSum=0, lSum=0, sSum=0, dSum=0, gSum=0;
-      let categories = {};
-      let commentsList = [];
+      let startDate = startVal ? new Date(startVal + "T00:00:00") : null;
+      let endDate = endVal ? new Date(endVal + "T23:59:59") : null;
 
-      data.forEach(item => {
-        bSum += item.breakfastRating;
-        lSum += item.lunchRating;
-        sSum += item.snacksRating;
-        dSum += item.dinnerRating;
-        gSum += item.generalRating;
+      filteredData = rawData.filter(item => {
+        let itemDate = parseDateForFilter(item.timestamp);
 
-        // Categories
-        categories[item.category] = (categories[item.category] || 0) + 1;
+        if (startDate && itemDate && itemDate < startDate) return false;
+        if (endDate && itemDate && itemDate > endDate) return false;
 
-        // Collect comments if present
-        if (item.breakfastComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Breakfast', rating: item.breakfastRating, comment: item.breakfastComment });
-        if (item.lunchComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Lunch', rating: item.lunchRating, comment: item.lunchComment });
-        if (item.snacksComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Snacks', rating: item.snacksRating, comment: item.snacksComment });
-        if (item.dinnerComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'Dinner', rating: item.dinnerRating, comment: item.dinnerComment });
-        if (item.generalComment) commentsList.push({ time: item.timestamp, name: item.name, cat: item.category, meal: 'General', rating: item.generalRating, comment: item.generalComment });
+        if (selectedBlock !== 'ALL' && !item.block.toLowerCase().trim().includes(selectedBlock.toLowerCase().trim())) {
+          return false;
+        }
+
+        return true;
       });
 
-      const count = data.length;
-      const bAvg = (bSum / count).toFixed(2);
-      const lAvg = (lSum / count).toFixed(2);
-      const sAvg = (sSum / count).toFixed(2);
-      const dAvg = (dSum / count).toFixed(2);
-      const gAvg = (gSum / count).toFixed(2);
+      renderMetrics(filteredData, selectedMeal);
+    }
 
-      const overallAvg = ((parseFloat(bAvg) + parseFloat(lAvg) + parseFloat(sAvg) + parseFloat(dAvg) + parseFloat(gAvg)) / 5).toFixed(2);
-      document.getElementById('kpiCsat').textContent = `${overallAvg} / 5.0`;
+    function renderMetrics(data, selectedMeal) {
+      document.getElementById('kpiTotal').textContent = data.length;
 
-      // Find highest & lowest
-      const mealMap = { Breakfast: bAvg, Lunch: lAvg, Snacks: sAvg, Dinner: dAvg, General: gAvg };
-      const sortedMeals = Object.keys(mealMap).sort((a,b) => mealMap[b] - mealMap[a]);
+      if (data.length === 0) {
+        document.getElementById('kpiCsat').textContent = "0.00 / 3.00";
+        document.getElementById('kpiHighest').textContent = "-";
+        document.getElementById('kpiLowest').textContent = "-";
+        document.getElementById('commentCount').textContent = "0 Written Feedback Entries";
+        document.getElementById('commentsTableBody').innerHTML = 
+          `<tr><td colspan="6" class="p-4 text-center text-slate-500">No responses match the selected block and date filters.</td></tr>`;
+
+        if (mealChartInstance) mealChartInstance.destroy();
+        if (blockChartInstance) blockChartInstance.destroy();
+        return;
+      }
+
+      let bSum=0, bCnt=0, lSum=0, lCnt=0, sSum=0, sCnt=0, dSum=0, dCnt=0, gSum=0, gCnt=0;
+      let blocks = {};
+      let writtenCommentsList = [];
+
+      data.forEach(item => {
+        let b = parseRating(item.breakfastRating);
+        let l = parseRating(item.lunchRating);
+        let s = parseRating(item.snacksRating);
+        let d = parseRating(item.dinnerRating);
+        let g = parseRating(item.generalRating);
+
+        if (b > 0) { bSum += b; bCnt++; }
+        if (l > 0) { lSum += l; lCnt++; }
+        if (s > 0) { sSum += s; sCnt++; }
+        if (d > 0) { dSum += d; dCnt++; }
+        if (g > 0) { gSum += g; gCnt++; }
+
+        if (item.block) {
+          let bName = item.block.trim();
+          blocks[bName] = (blocks[bName] || 0) + 1;
+        }
+
+        let meta = `${item.campusId || 'N/A'} (${item.block || 'N/A'})`;
+
+        if (item.breakfastComment && item.breakfastComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'Breakfast', score: b, comment: item.breakfastComment });
+        if (item.lunchComment && item.lunchComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'Lunch', score: l, comment: item.lunchComment });
+        if (item.snacksComment && item.snacksComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'Snacks', score: s, comment: item.snacksComment });
+        if (item.dinnerComment && item.dinnerComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'Dinner', score: d, comment: item.dinnerComment });
+        if (item.generalComment && item.generalComment.trim() !== "") writtenCommentsList.push({ time: cleanDateDisplay(item.timestamp), name: item.name, meta: meta, meal: 'General', score: g, comment: item.generalComment });
+      });
+
+      const bAvg = bCnt ? (bSum / bCnt).toFixed(2) : 0;
+      const lAvg = lCnt ? (lSum / lCnt).toFixed(2) : 0;
+      const sAvg = sCnt ? (sSum / sCnt).toFixed(2) : 0;
+      const dAvg = dCnt ? (dSum / dCnt).toFixed(2) : 0;
+      const gAvg = gCnt ? (gSum / gCnt).toFixed(2) : 0;
+
+      let validAvgs = [parseFloat(bAvg), parseFloat(lAvg), parseFloat(sAvg), parseFloat(dAvg), parseFloat(gAvg)].filter(x => x > 0);
+      let overallAvg = validAvgs.length ? (validAvgs.reduce((a, b) => a + b, 0) / validAvgs.length).toFixed(2) : "0.00";
       
-      document.getElementById('kpiHighest').textContent = `${sortedMeals[0]} (${mealMap[sortedMeals[0]]} ★)`;
-      document.getElementById('kpiLowest').textContent = `${sortedMeals[sortedMeals.length-1]} (${mealMap[sortedMeals[sortedMeals.length-1]]} ★)`;
+      document.getElementById('kpiCsat').textContent = `${overallAvg} / 3.00`;
 
-      // Render Chart 1: Bar Chart for Meals
+      let mealAverages = [];
+      if (bCnt) mealAverages.push({ name: 'Breakfast', score: parseFloat(bAvg) });
+      if (lCnt) mealAverages.push({ name: 'Lunch', score: parseFloat(lAvg) });
+      if (sCnt) mealAverages.push({ name: 'Snacks', score: parseFloat(sAvg) });
+      if (dCnt) mealAverages.push({ name: 'Dinner', score: parseFloat(dAvg) });
+      if (gCnt) mealAverages.push({ name: 'General', score: parseFloat(gAvg) });
+
+      if (mealAverages.length > 0) {
+        mealAverages.sort((x, y) => y.score - x.score);
+        document.getElementById('kpiHighest').textContent = `${mealAverages[0].name} (${mealAverages[0].score.toFixed(2)})`;
+        document.getElementById('kpiLowest').textContent = `${mealAverages[mealAverages.length - 1].name} (${mealAverages[mealAverages.length - 1].score.toFixed(2)})`;
+      }
+
+      // Bar Chart Config
+      let labels = ['Breakfast', 'Lunch', 'Snacks', 'Dinner', 'General'];
+      let datasetData = [bAvg, lAvg, sAvg, dAvg, gAvg];
+      let bgColors = ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#8b5cf6'];
+
+      if (selectedMeal !== 'ALL') {
+        labels = labels.filter(m => m.toLowerCase().includes(selectedMeal.toLowerCase()));
+        if (selectedMeal === 'Breakfast') { datasetData = [bAvg]; bgColors = ['#f59e0b']; }
+        else if (selectedMeal === 'Lunch') { datasetData = [lAvg]; bgColors = ['#3b82f6']; }
+        else if (selectedMeal === 'Snacks') { datasetData = [sAvg]; bgColors = ['#10b981']; }
+        else if (selectedMeal === 'Dinner') { datasetData = [dAvg]; bgColors = ['#6366f1']; }
+        else if (selectedMeal === 'General') { datasetData = [gAvg]; bgColors = ['#8b5cf6']; }
+      }
+
+      // Render Bar Chart with On-Top Data Labels
       const ctx1 = document.getElementById('mealChart').getContext('2d');
       if (mealChartInstance) mealChartInstance.destroy();
       mealChartInstance = new Chart(ctx1, {
         type: 'bar',
         data: {
-          labels: ['Breakfast', 'Lunch', 'Evening Snacks', 'Dinner', 'General Cleanliness'],
+          labels: labels,
           datasets: [{
-            label: 'Average Rating (Out of 5)',
-            data: [bAvg, lAvg, sAvg, dAvg, gAvg],
-            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#8b5cf6'],
-            borderRadius: 8
+            data: datasetData,
+            backgroundColor: bgColors,
+            borderRadius: 6
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           scales: {
-            y: { min: 1, max: 5, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-            x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+            y: { min: 0, max: 3.5, ticks: { color: '#94a3b8', stepSize: 1 } },
+            x: { ticks: { color: '#94a3b8' } }
           },
-          plugins: { legend: { display: false } }
+          plugins: { 
+            legend: { display: false },
+            datalabels: {
+              anchor: 'end',
+              align: 'end',
+              color: '#ffffff',
+              font: { weight: 'bold', size: 12 },
+              formatter: function(value) {
+                return value > 0 ? parseFloat(value).toFixed(2) : '';
+              }
+            }
+          }
         }
       });
 
-      // Render Chart 2: Doughnut Chart for Categories
-      const ctx2 = document.getElementById('categoryChart').getContext('2d');
-      if (categoryChartInstance) categoryChartInstance.destroy();
-      categoryChartInstance = new Chart(ctx2, {
+      // Render Block Chart
+      const ctx2 = document.getElementById('blockChart').getContext('2d');
+      if (blockChartInstance) blockChartInstance.destroy();
+      blockChartInstance = new Chart(ctx2, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(categories),
+          labels: Object.keys(blocks),
           datasets: [{
-            data: Object.values(categories),
+            data: Object.values(blocks),
             backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#ec4899', '#14b8a6']
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } }
+          plugins: { 
+            legend: { labels: { color: '#94a3b8', font: { size: 10 } } },
+            datalabels: { display: false }
+          }
         }
       });
 
-      // Populate Comments Table
-      document.getElementById('commentCount').textContent = `${commentsList.length} Total Comments`;
+      // Render Comments Table
       const tbody = document.getElementById('commentsTableBody');
       tbody.innerHTML = '';
 
-      if (commentsList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No text comments recorded yet.</td></tr>`;
+      let filteredComments = writtenCommentsList;
+      if (selectedMeal !== 'ALL') {
+        filteredComments = writtenCommentsList.filter(c => c.meal.toLowerCase().includes(selectedMeal.toLowerCase()));
+      }
+
+      document.getElementById('commentCount').textContent = `${filteredComments.length} Written Feedback Entries`;
+
+      if (filteredComments.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-500">No written text feedback submitted for this selection yet.</td></tr>`;
       } else {
-        commentsList.reverse().slice(0, 30).forEach(c => {
+        filteredComments.reverse().forEach(c => {
           const row = document.createElement('tr');
           row.className = 'hover:bg-slate-700/30 transition';
+          let badgeColor = c.score === 1 ? 'bg-red-500/20 text-red-400' : (c.score === 2 ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300');
+          
           row.innerHTML = `
-            <td class="p-3 text-slate-400 whitespace-nowrap">${new Date(c.time).toLocaleDateString()}</td>
+            <td class="p-3 text-slate-400 whitespace-nowrap">${c.time}</td>
             <td class="p-3 font-semibold text-white">${c.name}</td>
-            <td class="p-3 text-slate-400">${c.cat}</td>
+            <td class="p-3 text-slate-400">${c.meta}</td>
             <td class="p-3 font-bold text-amber-400">${c.meal}</td>
-            <td class="p-3"><span class="bg-amber-500/20 text-amber-300 font-bold px-2 py-0.5 rounded">${c.rating} ★</span></td>
+            <td class="p-3"><span class="${badgeColor} font-bold px-2 py-0.5 rounded">Score: ${c.score || 'N/A'}</span></td>
             <td class="p-3 text-slate-200">${c.comment}</td>
           `;
           tbody.appendChild(row);
@@ -239,8 +416,15 @@
       }
     }
 
-    // Load data on start
-    window.onload = fetchAnalyticsData;
+    function resetFilters() {
+      document.getElementById('startDate').value = '';
+      document.getElementById('endDate').value = '';
+      document.getElementById('mealFilter').value = 'ALL';
+      document.getElementById('blockFilter').value = 'ALL';
+      applyFilters();
+    }
+
+    window.onload = fetchSheetData;
   </script>
 </body>
 </html>
